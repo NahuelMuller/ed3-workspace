@@ -1,0 +1,8 @@
+# Directory
+Debug/
+.mcuxpressoide_packages_support/
+.metadata/
+FreeRTOS_TAD_logs/
+
+# Log file
+*.log
