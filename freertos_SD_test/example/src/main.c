@@ -56,7 +56,7 @@
 
 /*==================[definiciones y macros]==================================*/
 
-#define FILENAME  "log.dat"
+#define FILENAME  "log0.dat"
 
 /*==================[definiciones de datos internos]=========================*/
 
@@ -103,10 +103,8 @@ int main(void)
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 14);
 	// Initialize SSP Peripheral
 	Chip_SSP_Init( LPC_SSP1 );
+	Chip_SSP_SetBitRate(LPC_SSP1, 400000);
 	Chip_SSP_Enable( LPC_SSP1 );
-
-
-   printf( "Este programa loguea el ADC en un archivo en la tarjeta SD hasta que se mantenga presionada TEC1 o pase un minuto.\n" );
 
 
    // Led para dar señal de vida
@@ -116,7 +114,7 @@ int main(void)
 	xTaskCreate(myTask, "myTask", configMINIMAL_STACK_SIZE*2, 0, tskIDLE_PRIORITY+1, (TaskHandle_t *) NULL);
 
    // Crear tarea logTask en freeRTOS
-	xTaskCreate(logTask, "logTask", configMINIMAL_STACK_SIZE*8, 0, tskIDLE_PRIORITY+2, (TaskHandle_t *) NULL);
+	xTaskCreate(logTask, "logTask", configMINIMAL_STACK_SIZE*4, 0, tskIDLE_PRIORITY+2, (TaskHandle_t *) NULL);
 
    // Crear tarea diskTask en freeRTOS
 	xTaskCreate(diskTask, "diskTask", configMINIMAL_STACK_SIZE*2, 0, tskIDLE_PRIORITY+3, (TaskHandle_t *) NULL);
@@ -146,10 +144,15 @@ static void stopProgram( void ){
 
 static void inicializarSD(void){		// Registra el filesystem object en la SD
 
-	if(f_mount(&filesystem, "", 1) == FR_OK){
+	FRESULT test;
+
+	test = f_mount(&filesystem, "", 1);
+
+	if(test == FR_OK){
 		printf("Tarjeta SD montada y lista para trabajar\n");
 	} else {
 		printf("Error al montar la tarjeta SD\n");
+		printf("%d\n", (uint32_t)test);
 		stopProgram();
 	}
 
@@ -159,7 +162,8 @@ static void inicializarArchivo(void){		// Crea un archivo y asigna/prepara/reser
 
 	uint32_t t_0 = 0, t_o = 0, t_e = 0;
 	t_0 = xTaskGetTickCount();
-	if(f_open(&file, FILENAME, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) == FR_OK){
+	//if(f_open(&file, FILENAME, FA_CREATE_ALWAYS | FA_WRITE | FA_READ) == FR_OK){
+	if(f_open(&file, FILENAME, FA_OPEN_ALWAYS | FA_WRITE | FA_READ) == FR_OK){
 		t_o = xTaskGetTickCount() - t_0;
 		printf("Archivo creado (en %d mS)\n", t_o);
 	} else {
@@ -167,9 +171,9 @@ static void inicializarArchivo(void){		// Crea un archivo y asigna/prepara/reser
 		stopProgram();
 	}
 
-	/*uint32_t size = 1024;
+	/*uint32_t size = 510;
 	t_0 = xTaskGetTickCount();
-	if(f_expand(&file, size, 1) == FR_OK){		// Preparo 100MB (Ajustar tamaño)
+	if(f_expand(&file, size, 1) == FR_OK){		// size = bytes
 		t_e = xTaskGetTickCount() - t_0;
 		printf("Area (%d bytes) contigua asignada (en %d mS)\n", size, t_e);
 	} else {
@@ -205,9 +209,9 @@ void diskTask( void *taskParmPtr )
 void logTask( void *taskParmPtr )
 {
 
-	uint16_t SAMPLES_BUFFER = 127;
-	uint32_t test_out[SAMPLES_BUFFER];
-	uint32_t test_in[SAMPLES_BUFFER];
+	uint16_t SAMPLES_BUFFER = 255;
+	uint16_t test_out[SAMPLES_BUFFER];
+	uint16_t test_in[SAMPLES_BUFFER];
 	uint32_t ka, nbytes = 0;
 
 	uint32_t t_0 = 0, t_w = 0, t_s = 0, t_r = 0, t_d = 0;
@@ -255,11 +259,9 @@ void logTask( void *taskParmPtr )
 
 	vTaskDelay( 2000 / portTICK_RATE_MS );		// Esperemos otros 2 segundos
 
-	for(ka = 0; ka < SAMPLES_BUFFER/8; ka++){
+	for(ka = 0; ka < 6; ka++){
 		printf("%d\n", test_in[ka]);
 	}
-
-	f_close(&file);
 
 	stopProgram();
 

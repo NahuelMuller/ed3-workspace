@@ -603,34 +603,16 @@ DRESULT disk_ioctl (
 /* TODO: llamar desde SysTick_Handler cada 10ms */
 void disk_timerproc (void)
 {
-	static BYTE pv;
-	BYTE n, s;
 
+    if (Timer1)             /* 100Hz decrement timer */
+    {
+        -- Timer1;
+    }
 
-	n = Timer1;						/* 100Hz decrement timer */
-	if (n) Timer1 = --n;
-	n = Timer2;
-	if (n) Timer2 = --n;
+    if (Timer2)
+    {
+        -- Timer2;
+    }
 
-	n = pv;
-	//pv = SOCKPORT & (SOCKWP | SOCKINS);	/* Sample socket switch */
-
-	/* TODO: Actualizar!!! */
-	//pv = ((GPIO_ReadValue(2) & (1<<11)) != 0);
-	pv = (Chip_GPIO_GetPinState(LPC_GPIO_PORT, 2, 11) != 0);
-
-	if (n == pv) {					/* Have contacts stabled? */
-		s = Stat;
-
-		/* write protect NOT supported */
-
-		/* check card detect */
-		if (pv)			       /* (Socket empty) */
-			s |= (STA_NODISK | STA_NOINIT);
-		else				       /* (Card inserted) */
-			s &= ~STA_NODISK;
-
-		Stat = s;
-	}
 }
 

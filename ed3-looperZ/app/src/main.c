@@ -22,10 +22,12 @@ SemaphoreHandle_t			ADC_BUF_0_libre,			// Semaforos que libera el DMA IRQ
 							ADC_BUF_1_libre,			// Indican que buffer se termino de leer (ADC) o escribir (DAC)
 							DAC_BUF_0_libre,
 							DAC_BUF_1_libre,
-							queue_intermedia1_ready,
-							queue_intermedia2_ready;
+							queue_intermedia1_ready,	// La tarea ADC lleno una queue
+							queue_intermedia2_ready;	// La tarea MEM lleno una queue
 QueueHandle_t				queue_intermedia1,
 							queue_intermedia2;
+StreamBufferHandle_t		ADC_Output,					// Pipes
+							DAC_Input;
 
 /*====== PRIVATE FUNCTIONS ======*/
 
@@ -34,11 +36,11 @@ static void create_Tareas(void){
 	// Blinky LED 5 para dar signos de vida
 	xTaskCreate(vLED_Status, "vLED_Status", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), (TaskHandle_t *) NULL);
 	// Lectura del buffer libre del ADC
-	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL), (TaskHandle_t *) NULL);
 	// Escritura del buffer libre del DAC
-	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL), (TaskHandle_t *) NULL);
 	// Task para MEMORIA
-	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL), (TaskHandle_t *) NULL);
 
 }
 
@@ -72,6 +74,14 @@ static void create_Semaforos(void){
 
 static void create_Pipes(void){
 
+	uint32_t buffer_size = sizeof(uint16_t) * SAMPLES_BUFFER;
+
+	ADC_Output = xStreamBufferCreate(buffer_size, buffer_size);
+	DAC_Input = xStreamBufferCreate(buffer_size, buffer_size);
+
+	if(!ADC_Output || !DAC_Input){
+		while(1){};			// Fallo creacion
+	}
 }
 
 /*====== MAIN ======*/
@@ -111,19 +121,30 @@ void DMA_IRQHandler(){    // DMA: Identificar entre DMA_ADC y DMA_DAC y avisar q
 
 }
 
-void GPIO0_IRQHandler(void){
-	Board_LED_Toggle(1);
+void GPIO0_IRQHandler(void){	// Asignar funcion
+
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH0);
+	Board_LED_Toggle(1);
+
 }
-void GPIO1_IRQHandler(void){
-	Board_LED_Toggle(2);
+
+void GPIO1_IRQHandler(void){	// Asignar funcion
+
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH1);
+	Board_LED_Toggle(2);
+
 }
-void GPIO2_IRQHandler(void){
-	Board_LED_Toggle(3);
+
+void GPIO2_IRQHandler(void){	// Asignar funcion
+
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH2);
+	Board_LED_Toggle(3);
+
 }
-void GPIO3_IRQHandler(void){
-	Board_LED_Toggle(4);
+
+void GPIO3_IRQHandler(void){	// Asignar funcion
+
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH3);
+	Board_LED_Toggle(4);
+
 }

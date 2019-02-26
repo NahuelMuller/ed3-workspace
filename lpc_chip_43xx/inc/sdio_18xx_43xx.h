@@ -71,7 +71,7 @@ enum SDIO_EVENT
 #define SDIO_CMD_DATA        (1UL << 9)  /**! Command is a data transfer command */
 
 /** @brief	List of commands */
-#define CMD0            (0 | (1 << 15))
+//#define CMD0            (0 | (1 << 15))
 #define CMD5            (5 | SDIO_CMD_RESP_R4)
 #define CMD3            (3 | SDIO_CMD_RESP_R6)
 #define CMD7            (7 | SDIO_CMD_RESP_R1)
