@@ -103,7 +103,7 @@ int main(void)
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 14);
 	// Initialize SSP Peripheral
 	Chip_SSP_Init( LPC_SSP1 );
-	Chip_SSP_SetBitRate(LPC_SSP1, 400000);
+	Chip_SSP_SetBitRate(LPC_SSP1, 100000);
 	Chip_SSP_Enable( LPC_SSP1 );
 
 

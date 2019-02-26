@@ -358,6 +358,7 @@ DSTATUS disk_initialize (
 	if (ty) {			/* Initialization succeded */
 		Stat &= ~STA_NOINIT;		/* Clear STA_NOINIT */
 		FCLK_FAST();
+		Chip_SSP_SetBitRate(LPC_SSP1, 20000000);		// Send wick
 	} else {			/* Initialization failed */
 		power_off();
 	}
