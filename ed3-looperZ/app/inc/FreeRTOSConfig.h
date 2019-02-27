@@ -71,11 +71,13 @@
 
 #define configUSE_PREEMPTION		1
 #define configUSE_IDLE_HOOK			1
-#define configMAX_PRIORITIES		( 3 )//( ( UBaseType_t ) 8 )
+#define configMAX_PRIORITIES		4	// Priorities from 0 to (configMAX_PRIORITIES - 1)
+										// Each available priority consumes RAM within the RTOS kernel
+										// so this value should not be set any higher than actually required by your application.
 #define configUSE_TICK_HOOK			0
 #define configCPU_CLOCK_HZ			( ( uint32_t ) SystemCoreClock )
 #define configTICK_RATE_HZ			( ( TickType_t ) 1000 )
-#define configMINIMAL_STACK_SIZE	( ( uint16_t ) 128 )
+#define configMINIMAL_STACK_SIZE	( 128 )		// Task base stack size in words (32 bits / 4 bytes)
 #ifdef __CODE_RED
 #define configTOTAL_HEAP_SIZE		( ( size_t ) ( 16*1024 ) )
 #else

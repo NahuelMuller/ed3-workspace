@@ -19,37 +19,39 @@ DMA_TransferDescriptor_t	ADC_DMA_Descriptor_0,		// Transfer Descriptor structs
 							DAC_DMA_Descriptor_0,
 							DAC_DMA_Descriptor_1;
 SemaphoreHandle_t			ADC_BUF_0_libre,			// Semaforos que libera el DMA IRQ
-							ADC_BUF_1_libre,			// Indican que buffer se termino de leer (ADC) o escribir (DAC)
+							ADC_BUF_1_libre,			// Indican cual buffer se termino de leer (ADC) o escribir (DAC)
 							DAC_BUF_0_libre,
 							DAC_BUF_1_libre,
-							queue_intermedia1_ready,	// La tarea ADC lleno una queue
-							queue_intermedia2_ready;	// La tarea MEM lleno una queue
-QueueHandle_t				queue_intermedia1,
-							queue_intermedia2;
-StreamBufferHandle_t		ADC_Output,					// Pipes
-							DAC_Input;
+							queue_from_ADC_ready,	// La tarea ADC lleno una queue
+							queue_to_DAC_ready,	// La tarea MEM lleno una queue
+							finalizar_ejecucion;		// Aviso para graceful shutdown
+QueueHandle_t				queue_from_ADC,
+							queue_to_DAC;
+TaskHandle_t				xHandle_FIN_Task;			// Handler de la tarea vFIN_Task
 
 /*====== PRIVATE FUNCTIONS ======*/
 
 static void create_Tareas(void){
 
 	// Blinky LED 5 para dar signos de vida
-	xTaskCreate(vLED_Status, "vLED_Status", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vLED_Task, "vLED_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), NULL);
 	// Lectura del buffer libre del ADC
-	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
 	// Escritura del buffer libre del DAC
-	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
 	// Task para MEMORIA
-	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL), (TaskHandle_t *) NULL);
+	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+	// Task para finalizar la ejecucion
+	xTaskCreate(vFIN_Task, "vFIN_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), &xHandle_FIN_Task);
 
 }
 
 static void create_Colas(void){
 
-	queue_intermedia1 = xQueueCreate(SAMPLES_BUFFER, sizeof(uint16_t));
-	queue_intermedia2 = xQueueCreate(SAMPLES_BUFFER, sizeof(uint16_t));
+	queue_from_ADC = xQueueCreate(SAMPLES_BUFFER, sizeof(uint16_t));
+	queue_to_DAC = xQueueCreate(SAMPLES_BUFFER, sizeof(uint16_t));
 
-	if(!queue_intermedia1 || !queue_intermedia2){
+	if(!queue_from_ADC || !queue_to_DAC){
 		while(1){};			// Fallo creacion
 	}
 
@@ -61,12 +63,14 @@ static void create_Semaforos(void){
 	ADC_BUF_1_libre = xSemaphoreCreateBinary();
 	DAC_BUF_0_libre = xSemaphoreCreateBinary();
 	DAC_BUF_1_libre = xSemaphoreCreateBinary();
-	queue_intermedia1_ready = xSemaphoreCreateBinary();
-	queue_intermedia2_ready = xSemaphoreCreateBinary();
+	queue_from_ADC_ready = xSemaphoreCreateBinary();
+	queue_to_DAC_ready = xSemaphoreCreateBinary();
+	finalizar_ejecucion = xSemaphoreCreateBinary();
 
 	if(!ADC_BUF_0_libre || !ADC_BUF_1_libre ||
 		!DAC_BUF_0_libre || !DAC_BUF_1_libre ||
-		!queue_intermedia1_ready || !queue_intermedia2_ready){
+		!queue_from_ADC_ready || !queue_to_DAC_ready ||
+		!finalizar_ejecucion){
 		while(1){};		// Fallo creacion
 	}
 
@@ -74,14 +78,6 @@ static void create_Semaforos(void){
 
 static void create_Pipes(void){
 
-	uint32_t buffer_size = sizeof(uint16_t) * SAMPLES_BUFFER;
-
-	ADC_Output = xStreamBufferCreate(buffer_size, buffer_size);
-	DAC_Input = xStreamBufferCreate(buffer_size, buffer_size);
-
-	if(!ADC_Output || !DAC_Input){
-		while(1){};			// Fallo creacion
-	}
 }
 
 /*====== MAIN ======*/
@@ -93,6 +89,7 @@ int main(void){
 	create_Colas();				// Creacion de colas
 	create_Semaforos();			// Creacion de semaforos
 	create_Pipes();				// Creacion de pipes
+	init_SD_Card();				// Inicializacion de la memoria externa
 	init_Interrupts();			// Inician las interrupciones (GPDMA y GPIO)
 	vTaskStartScheduler();		// Arranca el Scheduler
 	return 1;					// Si llega hasta aca es porque fallo el Scheduler
@@ -124,27 +121,24 @@ void DMA_IRQHandler(){    // DMA: Identificar entre DMA_ADC y DMA_DAC y avisar q
 void GPIO0_IRQHandler(void){	// Asignar funcion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH0);
-	Board_LED_Toggle(1);
 
 }
 
 void GPIO1_IRQHandler(void){	// Asignar funcion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH1);
-	Board_LED_Toggle(2);
 
 }
 
 void GPIO2_IRQHandler(void){	// Asignar funcion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH2);
-	Board_LED_Toggle(3);
 
 }
 
-void GPIO3_IRQHandler(void){	// Asignar funcion
+void GPIO3_IRQHandler(void){	// Graceful shutdown
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH3);
-	Board_LED_Toggle(4);
+	xSemaphoreGiveFromISR(finalizar_ejecucion, NULL);
 
 }

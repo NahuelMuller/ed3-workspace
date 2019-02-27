@@ -3,7 +3,7 @@
 
 /*====== FUNCTION DECLARATIONS ======*/
 
-void vLED_Status(void *pvParameters) {
+void vLED_Task(void *pvParameters) {
 
 	while(1){
 		Board_LED_Toggle(5);
@@ -12,24 +12,22 @@ void vLED_Status(void *pvParameters) {
 
 }
 
-void vADC_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
+void vADC_Task(void *pvParameters){
 
-	uint16_t jota, ka;	// Actores de reparto
+	uint16_t jota;	// Actores de reparto
 
 	while(1){
 		if(xSemaphoreTake(ADC_BUF_0_libre, (TickType_t) 0) == pdPASS){
 			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				//ka = ADC_BUF_0[jota];
-				xQueueSendToBack(queue_intermedia1, &ADC_BUF_0[jota], (TickType_t) 1);
+				xQueueSendToBack(queue_from_ADC, &ADC_BUF_0[jota], (TickType_t) 1);
 			}
-			xSemaphoreGive(queue_intermedia1_ready);
+			xSemaphoreGive(queue_from_ADC_ready);
 		}
 		else if(xSemaphoreTake(ADC_BUF_1_libre, (TickType_t) 0) == pdPASS){
 			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				//ka = ADC_BUF_1[jota];
-				xQueueSendToBack(queue_intermedia1, &ADC_BUF_1[jota], (TickType_t) 1);
+				xQueueSendToBack(queue_from_ADC, &ADC_BUF_1[jota], (TickType_t) 1);
 			}
-			xSemaphoreGive(queue_intermedia1_ready);
+			xSemaphoreGive(queue_from_ADC_ready);
 		}
 		vTaskDelay(1 / portTICK_RATE_MS);
 	}
@@ -42,40 +40,76 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
 	while(1){
 
-		if( xSemaphoreTake(queue_intermedia1_ready,( TickType_t ) 1) == pdPASS ){			// REVISHAAR TIEMPO DE ESPERA
+		if( xSemaphoreTake(queue_from_ADC_ready,( TickType_t ) 1) == pdPASS ){			// REVISHAAR TIEMPO DE ESPERA
 			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				xQueueReceive(queue_intermedia1, &ka, (TickType_t) 0);
-				xQueueSendToBack(queue_intermedia2, &ka, (TickType_t) 1);
-				xSemaphoreGive(queue_intermedia2_ready);			// Lo puse abajo del FOR que copia la queue
+				xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);			// Successfully received items are removed from the queue.
+				xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
+				xSemaphoreGive(queue_to_DAC_ready);			// Lo puse abajo del FOR que copia la queue
 			}
-			//xSemaphoreGive(queue_intermedia2_ready);
+			//xSemaphoreGive(queue_to_DAC_ready);
 		}
 		//vTaskDelay(1 / portTICK_RATE_MS);
 	}
 
 }
 
-void vDAC_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
+void vDAC_Task(void *pvParameters){
 
 	uint16_t jota, ka;	// Actores de reparto
 
 	while(1){
-		if(xSemaphoreTake(queue_intermedia2_ready, (TickType_t) 0) == pdPASS){
+		if(xSemaphoreTake(queue_to_DAC_ready, (TickType_t) 1) == pdPASS){
 			if(xSemaphoreTake(DAC_BUF_0_libre, (TickType_t) 0) == pdPASS){
 				for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-					xQueueReceive(queue_intermedia2, &ka, (TickType_t) 1); // Successfully received items are removed from the queue.
+					xQueueReceive(queue_to_DAC, &ka, (TickType_t) 1);
 					DAC_BUF_0[jota] = ka;
 				}
 			}
 			else if(xSemaphoreTake(DAC_BUF_1_libre, (TickType_t) 0) == pdPASS){
-
 				for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-					xQueueReceive(queue_intermedia2, &ka, (TickType_t) 1);
+					xQueueReceive(queue_to_DAC, &ka, (TickType_t) 1);
 					DAC_BUF_1[jota] = ka;
 				}
 			}
 		}
-		vTaskDelay(1 / portTICK_RATE_MS);
+	}
+
+}
+
+void vFIN_Task(void *pvParameters){
+
+	uint16_t jota;	// Actores de reparto
+
+	while(1){
+		if(xSemaphoreTake(finalizar_ejecucion, (TickType_t) 100) == pdPASS){
+
+			vTaskPrioritySet(xHandle_FIN_Task, (tskIDLE_PRIORITY + 3UL));	// Set maximum priority (No ejecutar nada mas que el apagado)
+
+			NVIC_DisableIRQ(DMA_IRQn);			// Disable interrupts
+			NVIC_DisableIRQ(PIN_INT0_IRQn);
+			NVIC_DisableIRQ(PIN_INT1_IRQn);
+			NVIC_DisableIRQ(PIN_INT2_IRQn);
+			NVIC_DisableIRQ(PIN_INT3_IRQn);
+
+			Chip_ADC_DeInit(LPC_ADC0);			// Shutdown ADC
+			Chip_DAC_DeInit(LPC_DAC);			// Shutdown DAC
+
+			// (BUG (OPENOCD?): EL GPDMA NO INICIA DE NUEVO EN EL PROXIMO ENCENDIDO, HAY QUE RECONECTAR LA CIAA)
+			Chip_GPDMA_DeInit(LPC_GPDMA);		// Shutdown the GPDMA
+
+			// ACA CERRAR FILE SD
+			Chip_SSP_DeInit(LPC_SSP1);			// Deinitialise the SSP
+
+			for(jota = 0; jota < 6; jota++){	// LEDs: Apagado
+				Board_LED_Set(jota, FALSE);
+			}
+
+			vTaskEndScheduler();				// Frenar Scheduler
+
+			printf("Shutdown complete\n");
+			while(1){							// This is the end
+			}
+		}
 	}
 
 }

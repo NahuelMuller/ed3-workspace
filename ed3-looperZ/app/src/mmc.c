@@ -10,7 +10,7 @@
 #include "diskio.h"
 
 /* Definitions for MMC/SDC command */
-#define CMD0	(0x40+0)	/* GO_IDLE_STATE */
+#define CMD0_	(0x40+0)	/* GO_IDLE_STATE */		// Underscore (Definido en sdio_18xx_43xx.h)
 #define CMD1	(0x40+1)	/* SEND_OP_COND (MMC) */
 #define	ACMD41	(0xC0+41)	/* SEND_OP_COND (SDC) */
 #define CMD8	(0x40+8)	/* SEND_IF_COND */
@@ -34,9 +34,8 @@
 #define CS_LOW()    Chip_GPIO_SetPinOutLow(LPC_GPIO_PORT, 5, 14)		// CAMBIE (NAM) POR PIN "LCD4"
 #define CS_HIGH()   Chip_GPIO_SetPinOutHigh(LPC_GPIO_PORT, 5, 14)		// ORIGINALMENTE FUE (3, 0)
 
-#define	FCLK_SLOW()					/* Set slow clock (100k-400k) */
-#define	FCLK_FAST()					/* Set fast clock (depends on the CSD) */
-
+#define	FCLK_SLOW()	Chip_SSP_SetBitRate(LPC_SSP1, 100000);		/* Set slow clock (100k-400k) */
+#define	FCLK_FAST()	Chip_SSP_SetBitRate(LPC_SSP1, 20000000);	/* Set fast clock (depends on the CSD) */	// Send wick: 20MHz
 
 /*--------------------------------------------------------------------------
 
@@ -289,7 +288,7 @@ BYTE send_cmd (
 	xmit_spi((BYTE)(arg >> 8));			/* Argument[15..8] */
 	xmit_spi((BYTE)arg);				/* Argument[7..0] */
 	n = 0x01;							/* Dummy CRC + Stop */
-	if (cmd == CMD0) n = 0x95;			/* Valid CRC for CMD0(0) */
+	if (cmd == CMD0_) n = 0x95;			/* Valid CRC for CMD0(0) */
 	if (cmd == CMD8) n = 0x87;			/* Valid CRC for CMD8(0x1AA) */
 	xmit_spi(n);
 
@@ -330,7 +329,7 @@ DSTATUS disk_initialize (
 	for (n = 10; n; n--) rcvr_spi();	/* 80 dummy clocks */
 
 	ty = 0;
-	if (send_cmd(CMD0, 0) == 1) {			/* Enter Idle state */
+	if (send_cmd(CMD0_, 0) == 1) {			/* Enter Idle state */
 		Timer1 = 100;						/* Initialization timeout of 1000 msec */
 		if (send_cmd(CMD8, 0x1AA) == 1) {	/* SDHC */
 			for (n = 0; n < 4; n++) ocr[n] = rcvr_spi();		/* Get trailing return value of R7 resp */
@@ -603,34 +602,16 @@ DRESULT disk_ioctl (
 /* TODO: llamar desde SysTick_Handler cada 10ms */
 void disk_timerproc (void)
 {
-	static BYTE pv;
-	BYTE n, s;
 
+    if (Timer1)             /* 100Hz decrement timer */
+    {
+        -- Timer1;
+    }
 
-	n = Timer1;						/* 100Hz decrement timer */
-	if (n) Timer1 = --n;
-	n = Timer2;
-	if (n) Timer2 = --n;
+    if (Timer2)
+    {
+        -- Timer2;
+    }
 
-	n = pv;
-	//pv = SOCKPORT & (SOCKWP | SOCKINS);	/* Sample socket switch */
-
-	/* TODO: Actualizar!!! */
-	//pv = ((GPIO_ReadValue(2) & (1<<11)) != 0);
-	pv = (Chip_GPIO_GetPinState(LPC_GPIO_PORT, 2, 11) != 0);
-
-	if (n == pv) {					/* Have contacts stabled? */
-		s = Stat;
-
-		/* write protect NOT supported */
-
-		/* check card detect */
-		if (pv)			       /* (Socket empty) */
-			s |= (STA_NODISK | STA_NOINIT);
-		else				       /* (Card inserted) */
-			s &= ~STA_NODISK;
-
-		Stat = s;
-	}
 }
 

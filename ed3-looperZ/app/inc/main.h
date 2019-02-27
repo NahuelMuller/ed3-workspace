@@ -15,7 +15,7 @@
 #include	"ff.h"				// FAT FS
 
 /*====== DEFINITIONS ======*/
-#define		SAMPLES_BUFFER		256
+#define		SAMPLES_BUFFER		255
 
 /*====== VARIABLES ======*/
 extern	uint16_t					ADC_BUF_0[SAMPLES_BUFFER],	// Buffers DAC y ADC para el DMA
@@ -32,19 +32,22 @@ extern	SemaphoreHandle_t			ADC_BUF_0_libre,			// Semaforos que libera el DMA IRQ
 									ADC_BUF_1_libre,			// Indican que buffer se termino de leer (ADC) o escribir (DAC)
 									DAC_BUF_0_libre,
 									DAC_BUF_1_libre,
-									queue_intermedia1_ready,	// La tarea ADC lleno una queue
-									queue_intermedia2_ready;	// La tarea MEM lleno una queue
-extern	QueueHandle_t				queue_intermedia1,
-									queue_intermedia2;
-extern	StreamBufferHandle_t		ADC_Output,					// Pipes
-									DAC_Input;
+									queue_from_ADC_ready,		// La tarea ADC lleno una queue
+									queue_to_DAC_ready,			// La tarea MEM lleno una queue
+									finalizar_ejecucion;		// Aviso para graceful shutdown
+extern	QueueHandle_t				queue_from_ADC,
+									queue_to_DAC;
+extern	TaskHandle_t				xHandle_FIN_Task;			// Handler de la tarea vFIN_Task
+
 
 /*====== FUNCTION PROTOTYPES ======*/
 void init_Hardware(void);
+void init_SD_Card(void);
 void init_Interrupts(void);
 void disk_timerproc(void);
-void vLED_Status(void *);
+void vLED_Task(void *);
 void vADC_Task(void *);
 void vDAC_Task(void *);
 void vMEM_Task(void *);
+void vFIN_Task(void *);
 

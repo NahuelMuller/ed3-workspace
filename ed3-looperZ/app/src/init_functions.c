@@ -128,6 +128,7 @@ void init_Hardware(void){
 	Chip_GPDMA_SGTransfer(LPC_GPDMA, DAC_DMA_Channel, &DAC_DMA_Descriptor_temp, GPDMA_TRANSFERTYPE_M2P_CONTROLLER_DMA);
 
 	// SPI: SSP1
+	printf("Inicializando el SSP en SPI mode...\n");
 	Chip_SCU_PinMuxSet(0xF, 4, (SCU_MODE_PULLUP | SCU_MODE_FUNC0));												// SSP1_SCK
 	Chip_SCU_PinMuxSet(0x1, 3, (SCU_MODE_PULLUP | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC5));		// SSP1_MISO
 	Chip_SCU_PinMuxSet(0x1, 4, (SCU_MODE_PULLUP | SCU_MODE_FUNC5));												// SSP1_MOSI
@@ -135,6 +136,8 @@ void init_Hardware(void){
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 14);					// GPIO5[14] seteado como salida
 	Chip_SSP_Init(LPC_SSP1);		// Inicializacion SSP1
 	Chip_SSP_Enable(LPC_SSP1);		// SSP1 enable
+
+	printf("Systems up and running\n");
 
 }
 
