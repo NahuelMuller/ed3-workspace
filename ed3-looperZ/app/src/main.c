@@ -46,11 +46,11 @@ static void create_Tareas(void){
 	// Lectura del buffer libre del ADC
 	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
 
-	// Escritura del buffer libre del DAC
-	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
-
 	// Task para MEMORIA
-	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+
+	// Escritura del buffer libre del DAC
+	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
 
 	// Task para finalizar la ejecucion
 	xTaskCreate(vFIN_Task, "vFIN_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), &xHandle_FIN_Task);

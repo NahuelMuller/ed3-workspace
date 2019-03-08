@@ -48,17 +48,62 @@ void vADC_Task(void *pvParameters){
 
 void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
-	uint16_t jota, ka;	// Actores de reparto
+	uint16_t	jota, ka;	// Actores de reparto
+	Bool		recording = FALSE;
+	uint32_t	SD_index = 0,		// Puntero al bloque actual de memoria externa
+				SD_index_max = 0;	// Cantidad de bloques en memoria externa
+	uint8_t		modo_operacion;
 
 	while(1){
 
-		if( xSemaphoreTake(queue_from_ADC_ready, (TickType_t) 1) == pdPASS ){
-			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);			// Successfully received items are removed from the queue.
-				xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
-			}
-			xSemaphoreGive(queue_to_DAC_ready);
+		if(xSemaphoreTake(toggle_record, (TickType_t) 0) == pdPASS){
+			recording = !recording;
 		}
+
+		if(xSemaphoreTake(erase_record, (TickType_t) 0) == pdPASS){
+			if(!recording){
+				SD_index_max = 0;
+			}
+		}
+
+		if(recording){
+			if(SD_index_max){
+				modo_operacion = 3;		// Grabar mientras se reproduce lo grabado.
+			} else {
+				modo_operacion = 2;		// Grabar. No hay nada en la SD.
+			}
+		} else {
+			if(SD_index_max){
+				modo_operacion = 1;		// No grabar. Reproducir lo de la SD.
+			} else {
+				modo_operacion = 0;		// No grabar. No hay nada en la SD.
+			}
+		}
+
+		if(xSemaphoreTake(queue_from_ADC_ready, (TickType_t) 1) == pdPASS){
+
+			switch(modo_operacion){		// TODO: Ordenar por probabilidad de ocurrencia (No creo que afecte: https://stackoverflow.com/questions/1827406/how-much-does-the-order-of-case-labels-affect-the-efficiency-of-switch-statement)
+				case 0: {
+					for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+						xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);
+						xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
+						xSemaphoreGive(queue_to_DAC_ready);
+					}
+					// xSemaphoreGive(queue_to_DAC_ready);		// Si esta aca se rompe: Entra 2 veces seguidas en la misma task (ADC, DAC o MEM)
+				} break;
+				case 1: {
+					// ALGO
+				} break;
+				case 2: {
+					// ALGO
+				} break;
+				case 3: {
+					// ALGO
+				} break;
+			}
+
+		}
+
 	}
 
 }
