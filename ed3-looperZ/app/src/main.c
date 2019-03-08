@@ -22,12 +22,16 @@ SemaphoreHandle_t			ADC_BUF_0_libre,			// Semaforos que libera el DMA IRQ
 							ADC_BUF_1_libre,			// Indican cual buffer se termino de leer (ADC) o escribir (DAC)
 							DAC_BUF_0_libre,
 							DAC_BUF_1_libre,
-							queue_from_ADC_ready,	// La tarea ADC lleno una queue
-							queue_to_DAC_ready,	// La tarea MEM lleno una queue
-							finalizar_ejecucion;		// Aviso para graceful shutdown
+							queue_from_ADC_ready,		// La tarea ADC lleno una queue
+							queue_to_DAC_ready,			// La tarea MEM lleno una queue
+							finalizar_ejecucion,		// Aviso para graceful shutdown
+							toggle_record,				// Iniciar o detener grabacion
+							erase_record;				// Borrar grabacion
 QueueHandle_t				queue_from_ADC,
 							queue_to_DAC;
 TaskHandle_t				xHandle_FIN_Task;			// Handler de la tarea vFIN_Task
+FATFS						filesystem;			// <-- FatFs work area needed for each volume
+FIL							file;				// <-- File object needed for each open file
 
 /*====== PRIVATE FUNCTIONS ======*/
 
@@ -35,12 +39,19 @@ static void create_Tareas(void){
 
 	// Blinky LED 5 para dar signos de vida
 	xTaskCreate(vLED_Task, "vLED_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), NULL);
+
+	// Task para controlar el timer requerido por el modulo que maneja la SD
+	xTaskCreate(vDSK_Task, "vDSK_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 3UL), NULL);
+
 	// Lectura del buffer libre del ADC
-	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+
 	// Escritura del buffer libre del DAC
-	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+
 	// Task para MEMORIA
-	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+
 	// Task para finalizar la ejecucion
 	xTaskCreate(vFIN_Task, "vFIN_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 1UL), &xHandle_FIN_Task);
 
@@ -66,6 +77,8 @@ static void create_Semaforos(void){
 	queue_from_ADC_ready = xSemaphoreCreateBinary();
 	queue_to_DAC_ready = xSemaphoreCreateBinary();
 	finalizar_ejecucion = xSemaphoreCreateBinary();
+	toggle_record = xSemaphoreCreateBinary();
+	erase_record = xSemaphoreCreateBinary();
 
 	if(!ADC_BUF_0_libre || !ADC_BUF_1_libre ||
 		!DAC_BUF_0_libre || !DAC_BUF_1_libre ||
@@ -118,15 +131,17 @@ void DMA_IRQHandler(){    // DMA: Identificar entre DMA_ADC y DMA_DAC y avisar q
 
 }
 
-void GPIO0_IRQHandler(void){	// Asignar funcion
+void GPIO0_IRQHandler(void){	// Iniciar o detener grabacion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH0);
+	xSemaphoreGiveFromISR(toggle_record, NULL);
 
 }
 
-void GPIO1_IRQHandler(void){	// Asignar funcion
+void GPIO1_IRQHandler(void){	// Borrar grabacion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH1);
+	xSemaphoreGiveFromISR(erase_record, NULL);
 
 }
 

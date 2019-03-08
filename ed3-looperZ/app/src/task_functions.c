@@ -3,7 +3,7 @@
 
 /*====== FUNCTION DECLARATIONS ======*/
 
-void vLED_Task(void *pvParameters) {
+void vLED_Task(void *pvParameters){
 
 	while(1){
 		Board_LED_Toggle(5);
@@ -12,20 +12,32 @@ void vLED_Task(void *pvParameters) {
 
 }
 
+void vDSK_Task(void *pvParameters){
+
+	while(1){
+		disk_timerproc();						// Disk timer process
+		vTaskDelay(10 / portTICK_RATE_MS);
+	}
+
+}
+
 void vADC_Task(void *pvParameters){
 
 	uint16_t jota;	// Actores de reparto
+	uint16_t dsp_out[SAMPLES_BUFFER];
 
 	while(1){
 		if(xSemaphoreTake(ADC_BUF_0_libre, (TickType_t) 0) == pdPASS){
+			dsp_filter(ADC_BUF_0, dsp_out);
 			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				xQueueSendToBack(queue_from_ADC, &ADC_BUF_0[jota], (TickType_t) 1);
+				xQueueSendToBack(queue_from_ADC, &dsp_out[jota], (TickType_t) 1);
 			}
 			xSemaphoreGive(queue_from_ADC_ready);
 		}
 		else if(xSemaphoreTake(ADC_BUF_1_libre, (TickType_t) 0) == pdPASS){
+			dsp_filter(ADC_BUF_1, dsp_out);
 			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				xQueueSendToBack(queue_from_ADC, &ADC_BUF_1[jota], (TickType_t) 1);
+				xQueueSendToBack(queue_from_ADC, &dsp_out[jota], (TickType_t) 1);
 			}
 			xSemaphoreGive(queue_from_ADC_ready);
 		}
@@ -40,15 +52,13 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
 	while(1){
 
-		if( xSemaphoreTake(queue_from_ADC_ready,( TickType_t ) 1) == pdPASS ){			// REVISHAAR TIEMPO DE ESPERA
+		if( xSemaphoreTake(queue_from_ADC_ready, (TickType_t) 1) == pdPASS ){
 			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
 				xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);			// Successfully received items are removed from the queue.
 				xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
-				xSemaphoreGive(queue_to_DAC_ready);			// Lo puse abajo del FOR que copia la queue
 			}
-			//xSemaphoreGive(queue_to_DAC_ready);
+			xSemaphoreGive(queue_to_DAC_ready);
 		}
-		//vTaskDelay(1 / portTICK_RATE_MS);
 	}
 
 }
@@ -83,7 +93,7 @@ void vFIN_Task(void *pvParameters){
 	while(1){
 		if(xSemaphoreTake(finalizar_ejecucion, (TickType_t) 100) == pdPASS){
 
-			vTaskPrioritySet(xHandle_FIN_Task, (tskIDLE_PRIORITY + 3UL));	// Set maximum priority (No ejecutar nada mas que el apagado)
+			vTaskPrioritySet(xHandle_FIN_Task, (tskIDLE_PRIORITY + 4UL));	// Set maximum priority (No ejecutar nada mas que el apagado)
 
 			NVIC_DisableIRQ(DMA_IRQn);			// Disable interrupts
 			NVIC_DisableIRQ(PIN_INT0_IRQn);
@@ -97,7 +107,7 @@ void vFIN_Task(void *pvParameters){
 			// (BUG (OPENOCD?): EL GPDMA NO INICIA DE NUEVO EN EL PROXIMO ENCENDIDO, HAY QUE RECONECTAR LA CIAA)
 			Chip_GPDMA_DeInit(LPC_GPDMA);		// Shutdown the GPDMA
 
-			// ACA CERRAR FILE SD
+			f_close(&file);						// File close
 			Chip_SSP_DeInit(LPC_SSP1);			// Deinitialise the SSP
 
 			for(jota = 0; jota < 6; jota++){	// LEDs: Apagado
@@ -107,8 +117,7 @@ void vFIN_Task(void *pvParameters){
 			vTaskEndScheduler();				// Frenar Scheduler
 
 			printf("Shutdown complete\n");
-			while(1){							// This is the end
-			}
+			while(1){}							// This is the end
 		}
 	}
 

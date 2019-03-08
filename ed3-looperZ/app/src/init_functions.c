@@ -141,6 +141,33 @@ void init_Hardware(void){
 
 }
 
+void init_SD_Card(void){
+
+	if(f_mount(&filesystem, "", 1) == FR_OK){					// Registra el filesystem object en la SD
+		printf("Tarjeta SD montada y lista para trabajar\n");
+	} else {
+		printf("Error al montar la tarjeta SD\n");
+		while(1){}
+	}
+
+	if(f_open(&file, FILENAME, FA_OPEN_ALWAYS | FA_WRITE | FA_READ) == FR_OK){		// Crea un archivo
+		printf("Archivo creado\n");
+	} else {
+		printf("Error al crear el archivo\n");
+		while(1){}
+	}
+
+	/*	NO SE SI ESTA BIEN HACER ESTO, PROBAR SIN USARLO
+	uint32_t reserved_size = 1024*1024*20;								// Asigna/prepara/reserva un bloque continuo de memoria
+	if(f_expand(&file, reserved_size, 1) == FR_OK){						// reserved_size = bytes
+		printf("Area (%d bytes) contigua asignada\n", reserved_size);	// 20MB = (CALCULAR TIEMPO)
+	} else {
+		printf("Error al asignar area contigua\n");
+		while(1){}
+	}
+	*/
+
+}
 
 void init_Interrupts(void){
 

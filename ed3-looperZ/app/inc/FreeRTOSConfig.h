@@ -71,7 +71,7 @@
 
 #define configUSE_PREEMPTION		1
 #define configUSE_IDLE_HOOK			1
-#define configMAX_PRIORITIES		4	// Priorities from 0 to (configMAX_PRIORITIES - 1)
+#define configMAX_PRIORITIES		5	// Priorities from 0 to (configMAX_PRIORITIES - 1)
 										// Each available priority consumes RAM within the RTOS kernel
 										// so this value should not be set any higher than actually required by your application.
 #define configUSE_TICK_HOOK			0

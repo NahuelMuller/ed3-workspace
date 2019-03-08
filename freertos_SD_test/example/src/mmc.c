@@ -34,8 +34,8 @@
 #define CS_LOW()    Chip_GPIO_SetPinOutLow(LPC_GPIO_PORT, 5, 14)		// CAMBIE (NAM) POR PIN "LCD4"
 #define CS_HIGH()   Chip_GPIO_SetPinOutHigh(LPC_GPIO_PORT, 5, 14)		// ORIGINALMENTE FUE (3, 0)
 
-#define	FCLK_SLOW()					/* Set slow clock (100k-400k) */
-#define	FCLK_FAST()					/* Set fast clock (depends on the CSD) */
+#define	FCLK_SLOW()	Chip_SSP_SetBitRate(LPC_SSP1, 100000);		/* Set slow clock (100k-400k) */
+#define	FCLK_FAST()	Chip_SSP_SetBitRate(LPC_SSP1, 20*1000*1000);	/* Set fast clock (depends on the CSD) */	// Send wick: 20MHz
 
 
 /*--------------------------------------------------------------------------
@@ -358,7 +358,6 @@ DSTATUS disk_initialize (
 	if (ty) {			/* Initialization succeded */
 		Stat &= ~STA_NOINIT;		/* Clear STA_NOINIT */
 		FCLK_FAST();
-		Chip_SSP_SetBitRate(LPC_SSP1, 20000000);		// Send wick
 	} else {			/* Initialization failed */
 		power_off();
 	}
