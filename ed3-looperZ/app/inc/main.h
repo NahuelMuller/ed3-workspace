@@ -16,6 +16,7 @@
 
 /*====== DEFINITIONS ======*/
 #define		SAMPLES_BUFFER		255						// Calculado para que cada buffer tenga 510 bytes
+#define		BUFFER_SIZE			(SAMPLES_BUFFER * sizeof(uint16_t))
 #define		FILENAME			"looper.dat"
 
 /*====== VARIABLES ======*/

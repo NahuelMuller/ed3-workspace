@@ -48,35 +48,43 @@ void vADC_Task(void *pvParameters){
 
 void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
-	uint16_t	jota, ka;	// Actores de reparto
+	uint16_t	jota, ka;					// Actores de reparto
 	Bool		recording = FALSE;
-	uint32_t	SD_index = 0,		// Puntero al bloque actual de memoria externa
-				SD_index_max = 0;	// Cantidad de bloques en memoria externa
-	uint8_t		modo_operacion;
+	uint32_t	SD_index = 0,				// Puntero al bloque actual de memoria externa
+				SD_index_max = 0;			// Cantidad de bloques en memoria externa
+	uint8_t		modo_operacion = 0;
+	uint16_t	MEM_READ[SAMPLES_BUFFER],	// Buffers de lectura y escritura
+				MEM_WRITE[SAMPLES_BUFFER];
+	uint32_t	nbytes;						// Cantidad de bytes en operacion lectura/escritura
 
 	while(1){
 
 		if(xSemaphoreTake(toggle_record, (TickType_t) 0) == pdPASS){
 			recording = !recording;
+			if(recording){
+				Board_LED_Set(4, TRUE);
+				if(SD_index_max){
+					modo_operacion = 3;		// Grabar mientras se reproduce lo grabado.
+				} else {
+					Board_LED_Set(3, TRUE);
+					modo_operacion = 2;		// Grabar. No hay nada en la SD.
+				}
+			} else {
+				Board_LED_Set(4, FALSE);
+				if(modo_operacion == 2){
+					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+				} else if (modo_operacion == 3){
+					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index);			// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+				}
+				modo_operacion = 1;		// No grabar. Reproducir lo de la SD.
+			}
 		}
 
 		if(xSemaphoreTake(erase_record, (TickType_t) 0) == pdPASS){
 			if(!recording){
-				SD_index_max = 0;
-			}
-		}
-
-		if(recording){
-			if(SD_index_max){
-				modo_operacion = 3;		// Grabar mientras se reproduce lo grabado.
-			} else {
-				modo_operacion = 2;		// Grabar. No hay nada en la SD.
-			}
-		} else {
-			if(SD_index_max){
-				modo_operacion = 1;		// No grabar. Reproducir lo de la SD.
-			} else {
-				modo_operacion = 0;		// No grabar. No hay nada en la SD.
+				Board_LED_Set(3, FALSE);
+				SD_index_max = 0;		// Ignorar borrado si se esta grabando
+				modo_operacion = 0;
 			}
 		}
 
@@ -92,14 +100,46 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 					// xSemaphoreGive(queue_to_DAC_ready);		// Si esta aca se rompe: Entra 2 veces seguidas en la misma task (ADC, DAC o MEM)
 				} break;
 				case 1: {
-					// ALGO
+					f_read(&file, MEM_READ, BUFFER_SIZE, &nbytes);
+					for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+						xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);
+						ka = ka + MEM_READ[jota];
+						xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
+						xSemaphoreGive(queue_to_DAC_ready);
+					}
+					SD_index++;
+					if(SD_index == SD_index_max){
+						SD_index = 0;
+						f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+					}
 				} break;
 				case 2: {
-					// ALGO
+					for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+						xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);
+						xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
+						xSemaphoreGive(queue_to_DAC_ready);
+						MEM_WRITE[jota] = ka;
+					}
+					f_write(&file, MEM_WRITE, BUFFER_SIZE, &nbytes);	// Las operaciones R/W actualizan el puntero R/W a la siguiente posicion
+					SD_index_max++;
 				} break;
 				case 3: {
-					// ALGO
-				} break;
+					f_read(&file, MEM_READ, BUFFER_SIZE, &nbytes);
+					f_lseek(&file, f_tell(&file) - nbytes);				// Retrocede el puntero R/W para grabar sobre el mismo bloque
+					for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+						xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);
+						ka = ka + MEM_READ[jota];
+						MEM_WRITE[jota] = ka;
+						xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
+						xSemaphoreGive(queue_to_DAC_ready);
+					}
+					f_write(&file, MEM_WRITE, BUFFER_SIZE, &nbytes);
+					SD_index++;
+					if(SD_index == SD_index_max){
+						SD_index = 0;
+						f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+					}
+				}
 			}
 
 		}

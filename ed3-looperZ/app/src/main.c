@@ -47,7 +47,7 @@ static void create_Tareas(void){
 	xTaskCreate(vADC_Task, "vADC_Task", configMINIMAL_STACK_SIZE * 2, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
 
 	// Task para MEMORIA
-	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
+	xTaskCreate(vMEM_Task, "vMEM_Task", configMINIMAL_STACK_SIZE * 3, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
 
 	// Escritura del buffer libre del DAC
 	xTaskCreate(vDAC_Task, "vDAC_Task", configMINIMAL_STACK_SIZE * 1, NULL, (tskIDLE_PRIORITY + 2UL), NULL);
@@ -131,23 +131,23 @@ void DMA_IRQHandler(){    // DMA: Identificar entre DMA_ADC y DMA_DAC y avisar q
 
 }
 
-void GPIO0_IRQHandler(void){	// Iniciar o detener grabacion
+void GPIO0_IRQHandler(void){	// Asignar funcion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH0);
+
+}
+
+void GPIO1_IRQHandler(void){	// Iniciar o detener grabacion
+
+	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH1);
 	xSemaphoreGiveFromISR(toggle_record, NULL);
 
 }
 
-void GPIO1_IRQHandler(void){	// Borrar grabacion
-
-	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH1);
-	xSemaphoreGiveFromISR(erase_record, NULL);
-
-}
-
-void GPIO2_IRQHandler(void){	// Asignar funcion
+void GPIO2_IRQHandler(void){	// Borrar grabacion
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH2);
+	xSemaphoreGiveFromISR(erase_record, NULL);
 
 }
 
