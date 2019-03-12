@@ -81,9 +81,11 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 		}
 
 		if(xSemaphoreTake(erase_record, (TickType_t) 0) == pdPASS){
-			if(!recording){
+			if(!recording){					// Ignorar borrado si se esta grabando
 				Board_LED_Set(3, FALSE);
-				SD_index_max = 0;		// Ignorar borrado si se esta grabando
+				f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index);
+				SD_index = 0;
+				SD_index_max = 0;
 				modo_operacion = 0;
 			}
 		}
