@@ -73,8 +73,6 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 				Board_LED_Set(4, FALSE);
 				if(modo_operacion == 2){
 					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
-				} else if (modo_operacion == 3){
-					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index);			// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
 				}
 				modo_operacion = 1;		// No grabar. Reproducir lo de la SD.
 			}
