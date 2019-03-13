@@ -23,21 +23,38 @@ void vDSK_Task(void *pvParameters){
 
 void vADC_Task(void *pvParameters){
 
-	uint16_t jota;	// Actores de reparto
-	uint16_t dsp_out[SAMPLES_BUFFER];
+	uint16_t	jota;	// Actor de reparto
+	uint16_t	dsp_out[SAMPLES_BUFFER];
+	Bool		filtering = FALSE;
 
 	while(1){
+		if(xSemaphoreTake(toggle_filter, (TickType_t) 0) == pdPASS){
+			filtering = !filtering;
+			Board_LED_Set(0, filtering);
+		}
 		if(xSemaphoreTake(ADC_BUF_0_libre, (TickType_t) 0) == pdPASS){
-			dsp_filter(ADC_BUF_0, dsp_out);
-			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
-				xQueueSendToBack(queue_from_ADC, &dsp_out[jota], (TickType_t) 1);
+			if(filtering){
+				dsp_filter(ADC_BUF_0, dsp_out);
+				for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+					xQueueSendToBack(queue_from_ADC, &dsp_out[jota], (TickType_t) 1);
+				}
+			} else {
+				for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+					xQueueSendToBack(queue_from_ADC, &ADC_BUF_0[jota], (TickType_t) 1);
+				}
 			}
 			xSemaphoreGive(queue_from_ADC_ready);
 		}
 		else if(xSemaphoreTake(ADC_BUF_1_libre, (TickType_t) 0) == pdPASS){
-			dsp_filter(ADC_BUF_1, dsp_out);
-			for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+			if(filtering){
+				dsp_filter(ADC_BUF_1, dsp_out);
+				for(jota = 0; jota < SAMPLES_BUFFER; jota++){
 				xQueueSendToBack(queue_from_ADC, &dsp_out[jota], (TickType_t) 1);
+				}
+			} else {
+				for(jota = 0; jota < SAMPLES_BUFFER; jota++){
+				xQueueSendToBack(queue_from_ADC, &ADC_BUF_1[jota], (TickType_t) 1);
+				}
 			}
 			xSemaphoreGive(queue_from_ADC_ready);
 		}
@@ -61,8 +78,8 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
 		if(xSemaphoreTake(toggle_record, (TickType_t) 0) == pdPASS){
 			recording = !recording;
+			Board_LED_Set(4, recording);
 			if(recording){
-				Board_LED_Set(4, TRUE);
 				if(SD_index_max){
 					modo_operacion = 3;		// Grabar mientras se reproduce lo grabado.
 				} else {
@@ -70,7 +87,6 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 					modo_operacion = 2;		// Grabar. No hay nada en la SD.
 				}
 			} else {
-				Board_LED_Set(4, FALSE);
 				if(modo_operacion == 2){
 					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
 				}
@@ -150,7 +166,7 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
 void vDAC_Task(void *pvParameters){
 
-	uint16_t jota, ka;	// Actores de reparto
+	uint16_t	jota, ka;	// Actores de reparto
 
 	while(1){
 		if(xSemaphoreTake(queue_to_DAC_ready, (TickType_t) 1) == pdPASS){

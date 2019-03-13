@@ -38,7 +38,8 @@ extern	SemaphoreHandle_t			ADC_BUF_0_libre,			// Semaforos que libera el DMA IRQ
 									queue_to_DAC_ready,			// La tarea MEM lleno una queue
 									finalizar_ejecucion,		// Aviso para graceful shutdown
 									toggle_record,				// Iniciar o detener grabacion
-									erase_record;				// Borrar grabacion
+									erase_record,				// Borrar grabacion
+									toggle_filter;				// Activar o desactivar el filtro FIR
 extern	QueueHandle_t				queue_from_ADC,
 									queue_to_DAC;
 extern	TaskHandle_t				xHandle_FIN_Task;			// Handler de la tarea vFIN_Task

@@ -26,7 +26,8 @@ SemaphoreHandle_t			ADC_BUF_0_libre,			// Semaforos que libera el DMA IRQ
 							queue_to_DAC_ready,			// La tarea MEM lleno una queue
 							finalizar_ejecucion,		// Aviso para graceful shutdown
 							toggle_record,				// Iniciar o detener grabacion
-							erase_record;				// Borrar grabacion
+							erase_record,				// Borrar grabacion
+							toggle_filter;				// Activar o desactivar el filtro FIR
 QueueHandle_t				queue_from_ADC,
 							queue_to_DAC;
 TaskHandle_t				xHandle_FIN_Task;			// Handler de la tarea vFIN_Task
@@ -79,6 +80,7 @@ static void create_Semaforos(void){
 	finalizar_ejecucion = xSemaphoreCreateBinary();
 	toggle_record = xSemaphoreCreateBinary();
 	erase_record = xSemaphoreCreateBinary();
+	toggle_filter = xSemaphoreCreateBinary();
 
 	if(!ADC_BUF_0_libre || !ADC_BUF_1_libre ||
 		!DAC_BUF_0_libre || !DAC_BUF_1_libre ||
@@ -132,9 +134,10 @@ void DMA_IRQHandler(){    // DMA: Identificar entre DMA_ADC y DMA_DAC y avisar q
 
 }
 
-void GPIO0_IRQHandler(void){	// Asignar funcion
+void GPIO0_IRQHandler(void){	// Activar o desactivar el filtro FIR
 
 	Chip_PININT_ClearIntStatus(LPC_GPIO_PIN_INT, PININTCH0);
+	xSemaphoreGiveFromISR(toggle_filter, NULL);
 
 }
 
