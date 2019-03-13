@@ -18,14 +18,14 @@ fixed point precision: 15 bits
 
 #define FILTER_TAP_NUM 28
 
-uint16_t filter_taps[FILTER_TAP_NUM] = {
+int16_t filter_taps[FILTER_TAP_NUM] = {
   -127,  -130,  -157,  -145,  -73,  75,  306,  615, 981,  1369,  1738,
   2042,  2242,  2312,  2242,  2042,  1738,  1369,  981,  615,  306,
   75,  -73,  -145,  -157,  -130,  -127, 0
 };
 
 arm_fir_instance_q15 fir_instance;						// Instance structure for the Q15 FIR filter.
-uint16_t fir_state[SAMPLES_BUFFER + FILTER_TAP_NUM];		// State buffer
+int16_t fir_state[SAMPLES_BUFFER + FILTER_TAP_NUM];		// State buffer
 
 /*====== FUNCTION DECLARATIONS ======*/
 
@@ -38,6 +38,6 @@ void dsp_filter_init(void){
 
 void dsp_filter(uint16_t *input, uint16_t *output){
 
-	arm_fir_q15(&fir_instance, &input[0], &output[0], SAMPLES_BUFFER);
+	arm_fir_q15(&fir_instance, input, output, SAMPLES_BUFFER);
 
 }

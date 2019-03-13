@@ -31,8 +31,8 @@ void init_Hardware(void){
 	uint32_t clk_adc = Chip_Clock_GetRate(CLK_APB3_ADC0);
 	uint32_t clk_div = (LPC_ADC0->CR >> 8) & 0xFF;
 	float fs_adc = (float) clk_adc / ((float) (clk_div + 1) * 11);			// 11 = Resolucion + 1
-	printf("Clock del ADC0_CH1: %d\n", clk_adc);
-	printf("Frecuencia de sampleo del ADC0_CH1: %f\n", fs_adc);
+	printf("Clock del ADC0_CH1: %d Hz\n", clk_adc);
+	printf("Frecuencia de sampleo del ADC0_CH1: %f Hz\n", fs_adc);
 
 	// DAC
 	printf("Inicializando el DAC...\n");
@@ -47,8 +47,8 @@ void init_Hardware(void){
 
 	uint32_t clk_dac = Chip_Clock_GetRate(CLK_APB3_DAC);
 	float fs_dac = (float) clk_dac / (float) 1595;
-	printf("Clock del DAC: %d\n", clk_dac);
-	printf("Frecuencia de sampleo del DAC: %f\n", fs_dac);
+	printf("Clock del DAC: %d Hz\n", clk_dac);
+	printf("Frecuencia de sampleo del DAC: %f Hz\n", fs_dac);
 
 	// DMA_ADC
 	printf("Inicializando el DMA_ADC...\n");
