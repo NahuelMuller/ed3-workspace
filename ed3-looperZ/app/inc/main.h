@@ -57,5 +57,6 @@ void vADC_Task(void *);
 void vDAC_Task(void *);
 void vMEM_Task(void *);
 void vFIN_Task(void *);
+void dsp_filter_init(void);
 void dsp_filter(uint16_t *, uint16_t *);
 

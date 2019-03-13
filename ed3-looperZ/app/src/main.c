@@ -102,6 +102,7 @@ int main(void){
 	create_Colas();				// Creacion de colas
 	create_Semaforos();			// Creacion de semaforos
 	create_Pipes();				// Creacion de pipes
+	dsp_filter_init();			// Inicializacion del filtro FIR
 	init_SD_Card();				// Inicializacion de la memoria externa
 	init_Interrupts();			// Inician las interrupciones (GPDMA y GPIO)
 	vTaskStartScheduler();		// Arranca el Scheduler
