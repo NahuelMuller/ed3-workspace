@@ -12,7 +12,7 @@ void init_Hardware(void){
 	Board_Init();				// Inicia LEDs y Pulsadores
 
 	// CAMBIO EL CLOCK BASE DEL ADC Y EL DAC (para obtener 8kHz de sampling)
-	Chip_Clock_SetDivider((CHIP_CGU_IDIV_T) CLK_IDIV_D, (CHIP_CGU_CLKIN_T) CLKIN_MAINPLL, 16);	// CLKIN_IDIVD = CLKIN_MAINPLL / 16 = 204MHz / 4 = 12.75MHz
+	Chip_Clock_SetDivider((CHIP_CGU_IDIV_T) CLK_IDIV_D, (CHIP_CGU_CLKIN_T) CLKIN_MAINPLL, 16);	// CLKIN_IDIVD = CLKIN_MAINPLL / 16 = 204MHz / 16 = 12.75MHz
 	Chip_Clock_SetBaseClock(CLK_BASE_APB3, CLKIN_IDIVD, FALSE, FALSE);							// Seteo el CLK base del ADC y el DAC como la salida del divisor
 
 	// ADC
@@ -157,11 +157,10 @@ void init_SD_Card(void){
 		while(1){}
 	}
 
-	// NO SE SI ESTA BIEN HACER LO SIGUIENTE, PROBAR SIN USARLO
-	uint32_t reserved_size = 1024*1024*1;								// Asigna/prepara/reserva un bloque continuo de memoria
+	uint32_t reserved_size = 1024*1024*5;								// Asigna/prepara/reserva un bloque continuo de memoria
 	if(f_expand(&file, reserved_size, 1) == FR_OK){						// reserved_size = bytes
-		printf("Area (%d bytes) contigua asignada\n", reserved_size);	// 1MB = (CALCULAR TIEMPO)
-	} else {
+		printf("Area (%d bytes) contigua asignada\n", reserved_size);	// 16b = 2B --> 1 / 7993.730469Hz = 0.125mS
+	} else {															// 5MB --> 327.94S = 5'28"
 		printf("Error al asignar area contigua\n");
 		while(1){}
 	}

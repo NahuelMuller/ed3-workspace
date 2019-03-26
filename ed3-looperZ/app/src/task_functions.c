@@ -63,7 +63,7 @@ void vADC_Task(void *pvParameters){
 
 }
 
-void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
+void vMEM_Task(void *pvParameters){
 
 	uint16_t	jota, ka;					// Actores de reparto
 	Bool		recording = FALSE;
@@ -88,7 +88,7 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 				}
 			} else {
 				if(modo_operacion == 2){
-					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+					f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo
 				}
 				modo_operacion = 1;		// No grabar. Reproducir lo de la SD.
 			}
@@ -106,14 +106,13 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 
 		if(xSemaphoreTake(queue_from_ADC_ready, (TickType_t) 1) == pdPASS){
 
-			switch(modo_operacion){		// TODO: Ordenar por probabilidad de ocurrencia (No creo que afecte: https://stackoverflow.com/questions/1827406/how-much-does-the-order-of-case-labels-affect-the-efficiency-of-switch-statement)
+			switch(modo_operacion){
 				case 0: {
 					for(jota = 0; jota < SAMPLES_BUFFER; jota++){
 						xQueueReceive(queue_from_ADC, &ka, (TickType_t) 0);
 						xQueueSendToBack(queue_to_DAC, &ka, (TickType_t) 1);
 						xSemaphoreGive(queue_to_DAC_ready);
 					}
-					// xSemaphoreGive(queue_to_DAC_ready);		// Si esta aca se rompe: Entra 2 veces seguidas en la misma task (ADC, DAC o MEM)
 				} break;
 				case 1: {
 					f_read(&file, MEM_READ, BUFFER_SIZE, &nbytes);
@@ -126,7 +125,7 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 					SD_index++;
 					if(SD_index == SD_index_max){
 						SD_index = 0;
-						f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+						f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo
 					}
 				} break;
 				case 2: {
@@ -153,7 +152,7 @@ void vMEM_Task(void *pvParameters){		// EN DESARROLLO!!!!!!!!!!!!!!!
 					SD_index++;
 					if(SD_index == SD_index_max){
 						SD_index = 0;
-						f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo (esperemos que sea asi)
+						f_lseek(&file, f_tell(&file) - BUFFER_SIZE * SD_index_max);		// Retrocede el puntero R/W al inicio del archivo
 					}
 				}
 			}
@@ -205,7 +204,7 @@ void vFIN_Task(void *pvParameters){
 			Chip_ADC_DeInit(LPC_ADC0);			// Shutdown ADC
 			Chip_DAC_DeInit(LPC_DAC);			// Shutdown DAC
 
-			// (BUG (OPENOCD?): EL GPDMA NO INICIA DE NUEVO EN EL PROXIMO ENCENDIDO, HAY QUE RECONECTAR LA CIAA)
+			// (BUG (OPENOCD?): EL GPDMA NO INICIA DE NUEVO EN EL PROXIMO ENCENDIDO, HAY QUE RECONECTAR LA CIAA / PULSAR RESET)
 			Chip_GPDMA_DeInit(LPC_GPDMA);		// Shutdown the GPDMA
 
 			f_close(&file);						// File close
